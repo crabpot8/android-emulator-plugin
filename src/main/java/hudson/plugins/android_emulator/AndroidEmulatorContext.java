@@ -111,6 +111,9 @@ public class AndroidEmulatorContext {
 		 */
 		final EnvVars buildEnvironment = build.getEnvironment(TaskListener.NULL);
 		buildEnvironment.put("ANDROID_ADB_SERVER_PORT", Integer.toString(adbServerPort));
+                if (sdk.hasKnownHome()) {
+                  buildEnvironment.put("ANDROID_SDK_HOME", sdk.getSdkHome());
+                }
 		return launcher.launch().stdout(new NullStream()).stderr(logger()).envs(buildEnvironment);
 	}
 

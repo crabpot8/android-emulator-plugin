@@ -114,44 +114,6 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
         return avdName != null;
     }
 
-    /**
-     * A hash representing the variables that are used to determine which emulator configuration
-     * should be started to fulfil the job configuration.
-     *
-     * @param node The Node on which the emulator would be run.
-     * @return A hash representing the emulator configuration for this instance.
-     */
-    public String getConfigHash(Node node) {
-        return getConfigHash(node, null);
-    }
-
-    /**
-     * A hash representing the variables that are used to determine which emulator configuration
-     * should be started to fulfill the job configuration.
-     *
-     * @param node The Node on which the emulator would be run.
-     * @param combination The matrix combination values used to expand emulator config variables.
-     * @return A hash representing the emulator configuration for this instance.
-     */
-    public String getConfigHash(Node node, Combination combination) {
-        EnvVars envVars;
-        try {
-            envVars = node.toComputer().getEnvironment();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-
-        // Expand variables using the node's environment and the matrix properties, if any
-        String avdName = Utils.expandVariables(envVars, combination, this.avdName);
-        String osVersion = Utils.expandVariables(envVars, combination, this.osVersion);
-        String screenDensity = Utils.expandVariables(envVars, combination, this.screenDensity);
-        String screenResolution = Utils.expandVariables(envVars, combination, this.screenResolution);
-        String deviceLocale = Utils.expandVariables(envVars, combination, this.deviceLocale);
-
-        return EmulatorConfig.getAvdName(avdName, osVersion, screenDensity, screenResolution, deviceLocale);
-    }
-
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Environment setUp(AbstractBuild build, final Launcher launcher, BuildListener listener)
@@ -204,10 +166,11 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
 
         // Build emulator config, ensuring that variables expand to valid SDK values
         EmulatorConfig emuConfig;
+        final String androidSdkHome = (envVars != null ? envVars.get("WORKSPACE") : null);
         try {
             emuConfig = EmulatorConfig.create(avdName, osVersion, screenDensity,
                 screenResolution, deviceLocale, sdCardSize, wipeData, showWindow, useSnapshots,
-                commandLineOptions);
+                commandLineOptions, androidSdkHome);
         } catch (IllegalArgumentException e) {
             log(logger, Messages.EMULATOR_CONFIGURATION_BAD(e.getLocalizedMessage()));
             build.setResult(Result.NOT_BUILT);
@@ -215,7 +178,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
         }
 
         // Confirm that the required SDK tools are available
-        AndroidSdk androidSdk = Utils.getAndroidSdk(launcher, androidHome);
+        AndroidSdk androidSdk = Utils.getAndroidSdk(launcher, androidHome, androidSdkHome);
         if (androidSdk == null) {
             if (!descriptor.shouldInstallSdk) {
                 // Couldn't find an SDK, don't want to install it, give up
@@ -227,7 +190,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
             // Ok, let's download and install the SDK
             log(logger, Messages.INSTALLING_SDK());
             try {
-                androidSdk = SdkInstaller.install(launcher, listener);
+                androidSdk = SdkInstaller.install(launcher, listener, androidSdkHome);
             } catch (SdkInstallationException e) {
                 log(logger, Messages.SDK_INSTALLATION_FAILED(), e);
                 build.setResult(Result.NOT_BUILT);
