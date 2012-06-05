@@ -25,21 +25,36 @@ import java.io.Serializable;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+/**
+ * Acts as a data structure for all options needed to start an Android emulator. 
+ * Depending upon which constructor is used, the internal {@link EmulatorCreationTask} 
+ * will either start an existing AVD with the options stored in the {@link EmulatorConfig},
+ * or it will first create a new AVD and then launch it.  
+ * 
+ * 
+ */
 class EmulatorConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** Either the user-defined name, or a name created by 
+     * {@link EmulatorConfig#getGeneratedAvdName()} */
     private String avdName;
+    
+    // The following variables are only required if we are creating a new AVD
     private AndroidPlatform osVersion;
     private ScreenDensity screenDensity;
     private ScreenResolution screenResolution;
     private String deviceLocale;
     private String sdCardSize;
+    
+    // The following variables are required for starting any AVD 
     private boolean wipeData;
     private final boolean showWindow;
     private final boolean useSnapshots;
     private final String commandLineOptions;
 
+    /** Constructor used if a pre-defined AVD will be started */
     public EmulatorConfig(String avdName, boolean wipeData, boolean showWindow,
             boolean useSnapshots, String commandLineOptions) {
         this.avdName = avdName;
@@ -49,6 +64,7 @@ class EmulatorConfig implements Serializable {
         this.commandLineOptions = commandLineOptions;
     }
 
+    /** Constructor used if an AVD will be created */
     public EmulatorConfig(String osVersion, String screenDensity, String screenResolution,
             String deviceLocale, String sdCardSize, boolean wipeData, boolean showWindow,
             boolean useSnapshots, String commandLineOptions)
@@ -57,7 +73,7 @@ class EmulatorConfig implements Serializable {
             throw new IllegalArgumentException("Valid OS version and screen properties must be supplied.");
         }
 
-        // Normalise incoming variables
+        // Normalize incoming variables
         int targetLength = osVersion.length();
         if (targetLength > 2 && osVersion.startsWith("\"") && osVersion.endsWith("\"")) {
             osVersion = osVersion.substring(1, targetLength - 1);
@@ -99,6 +115,19 @@ class EmulatorConfig implements Serializable {
         this.commandLineOptions = commandLineOptions;
     }
 
+    /**
+     * Creates and initializes an {@link EmulatorConfig}. If <code>null</code> is passed 
+     * for avdName, then this uses stores all parameters and creates a new AVD when the 
+     * {@link EmulatorCreationTask} occurs. If an avdName is passed, then only the 
+     * initialization parameters for this run are stored, and the pre-existing AVD is 
+     * used. 
+     * 
+     * TODO - Is this redirection method necessary? It seems to just confuse and clutter the 
+     * interface, and moving the constructor calling decision logic into {@link AndroidEmulator} 
+     * would make it more clear what was happening inside {@link EmulatorConfig}
+     * 
+     * @return the configured {@link EmulatorConfig}
+     */
     public static final EmulatorConfig create(String avdName, String osVersion, String screenDensity,
             String screenResolution, String deviceLocale, String sdCardSize, boolean wipeData,
             boolean showWindow, boolean useSnapshots, String commandLineOptions) {
@@ -136,7 +165,7 @@ class EmulatorConfig implements Serializable {
         String density = screenDensity.toString();
         String resolution = screenResolution.toString();
         String platform = osVersion.getTargetName().replace(':', '_').replace(' ', '_');
-        return String.format("hudson_%s_%s_%s_%s", locale, density, resolution, platform);
+        return String.format("jenkins_%s_%s_%s_%s", locale, density, resolution, platform);
     }
 
     public AndroidPlatform getOsVersion() {
