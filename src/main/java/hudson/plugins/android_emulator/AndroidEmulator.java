@@ -6,18 +6,18 @@ import hudson.Extension;
 import hudson.FilePath;
 import hudson.Functions;
 import hudson.Launcher;
+import hudson.Launcher.ProcStarter;
 import hudson.Proc;
 import hudson.Util;
-import hudson.Launcher.ProcStarter;
 import hudson.matrix.Combination;
+import hudson.model.BuildListener;
+import hudson.model.Result;
+import hudson.model.TaskListener;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
-import hudson.model.BuildListener;
 import hudson.model.Computer;
 import hudson.model.Hudson;
 import hudson.model.Node;
-import hudson.model.Result;
-import hudson.model.TaskListener;
 import hudson.plugins.android_emulator.sdk.AndroidSdk;
 import hudson.plugins.android_emulator.sdk.Tool;
 import hudson.plugins.android_emulator.util.Utils;
@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -55,6 +56,13 @@ import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
 
+/**
+ * The main entry point for the rest of the plugin. Exposes main plugin
+ * options, validates options dynamically, passes emulator-specific
+ * options to {@link EmulatorConfig}, waits for emulator launch to 
+ * complete, and finally cleans up after the build is complete   
+ * 
+ */
 public class AndroidEmulator extends BuildWrapper implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -70,7 +78,11 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
 
     /** Interval during which killing a process should complete. */
     private static final int KILL_PROCESS_TIMEOUT_MS = 10 * 1000;
+    
+    /** Used for logging plugin-level messages and errors */
+    private static final Logger plog = Logger.getLogger(AndroidEmulator.class.getName());
 
+    // All of the variables below this line are used in the config.jelly
     private DescriptorImpl descriptor;
 
     // Config properties: AVD name
@@ -94,7 +106,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
     @Exported public final int startupDelay;
     @Exported public final String commandLineOptions;
 
-
+    /** Called from {@link DescriptorImpl#newInstance(StaplerRequest, JSONObject)} */
     @DataBoundConstructor
     public AndroidEmulator(String avdName, String osVersion, String screenDensity,
             String screenResolution, String deviceLocale, String sdCardSize,
@@ -114,15 +126,38 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
         this.deleteAfterBuild = deleteAfterBuild;
         this.startupDelay = Math.abs(startupDelay);
         this.commandLineOptions = commandLineOptions;
+        
+        
+        StringBuilder message = new StringBuilder("AndroidEmulator constructor called with [");
+        message.append(avdName).append(',');
+        message.append(osVersion).append(',');
+        message.append(screenDensity).append(',');
+        message.append(screenResolution).append(',');
+        message.append(deviceLocale).append(',');
+        message.append(sdCardSize).append(",[ ");
+        for (HardwareProperty hp : hardwareProperties)
+        	message.append(hp).append(',');
+        message.setLength(message.length() - 1);
+        message.append("],");
+        message.append(wipeData).append(',');    
+        message.append(showWindow).append(',');
+        message.append(useSnapshots).append(',');
+        message.append(deleteAfterBuild).append(',');
+        message.append(startupDelay).append(",\"");
+        message.append(commandLineOptions).append("\"]");
+        plog.info(message.toString());
+
     }
 
+    /** Called by config.jelly to see which radio-button we're using */
     public boolean getUseNamedEmulator() {
         return avdName != null;
     }
 
     /**
      * A hash representing the variables that are used to determine which emulator configuration
-     * should be started to fulfil the job configuration.
+     * should be started to fulfill the job configuration. Used to ensure that AVDs are not  
+     * run concurrently
      *
      * @param node The Node on which the emulator would be run.
      * @return A hash representing the emulator configuration for this instance.
@@ -133,7 +168,12 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
 
     /**
      * A hash representing the variables that are used to determine which emulator configuration
+<<<<<<< HEAD
      * should be started to fulfill the job configuration.
+=======
+     * should be started to fulfill the job configuration. Used to ensure that AVDs are not  
+     * run concurrently
+>>>>>>> avd_name
      *
      * @param node The Node on which the emulator would be run.
      * @param combination The matrix combination values used to expand emulator config variables.
@@ -510,6 +550,7 @@ public class AndroidEmulator extends BuildWrapper implements Serializable {
                     env.put("ANDROID_HOME", androidSdk.getSdkRoot());
                 }
             }
+
 
 			@Override
 			@SuppressWarnings("rawtypes")
