@@ -491,10 +491,13 @@ class EmulatorConfig implements Serializable {
             args.append("-f ");
 
             // Initialise snapshot support, regardless of whether we will actually use it
+            //Android 4.0.x no longer supports the -a argument
+            /*
             if (androidSdk.supportsSnapshots()) {
                 args.append("-a ");
             }
-
+			*/
+            
             if (sdCardSize != null) {
                 args.append("-c ");
                 args.append(sdCardSize);
