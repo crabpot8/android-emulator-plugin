@@ -490,19 +490,26 @@ class EmulatorConfig implements Serializable {
             // Overwrite any existing files
             args.append("-f ");
 
-            // Initialise snapshot support, regardless of whether we will actually use it
-            //Android 4.0.x no longer supports the -a argument
-            /*
+            // Initialize snapshot support, regardless of whether we will actually use it
             if (androidSdk.supportsSnapshots()) {
                 args.append("-a ");
             }
-			*/
+			
             
             if (sdCardSize != null) {
                 args.append("-c ");
                 args.append(sdCardSize);
                 args.append(" ");
             }
+            
+            //If the Android SDK version is 14 or greater (indicating Android OS 4.0.x or greater)
+            //select x86 as the abi version
+            //Otherwise abi version must be armeabi
+            if (osVersion.getSdkLevel() >= 14){
+            	args.append("--abi x86 ");
+            }
+            
+            
             args.append("-s ");
             args.append(screenResolution.getSkinName());
             args.append(" -n ");
