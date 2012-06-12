@@ -509,7 +509,6 @@ class EmulatorConfig implements Serializable {
             	args.append("--abi x86 ");
             }
             
-            
             args.append("-s ");
             args.append(screenResolution.getSkinName());
             args.append(" -n ");
