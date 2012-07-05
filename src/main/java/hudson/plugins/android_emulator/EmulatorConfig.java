@@ -495,19 +495,16 @@ class EmulatorConfig implements Serializable {
                 args.append("-a ");
             }
 			
-            
             if (sdCardSize != null) {
                 args.append("-c ");
                 args.append(sdCardSize);
                 args.append(" ");
             }
             
-            //If the Android SDK version is 14 or greater (indicating Android OS 4.0.x or greater)
-            //select x86 as the abi version
-            //Otherwise abi version must be armeabi
-            if (osVersion.getSdkLevel() >= 14){
+            //For Android 4.0.x and higher, use x86 emulation
+            if (androidSdk.getSdkToolsVersion() >= 15){
             	args.append("--abi x86 ");
-            }
+        	}
             
             args.append("-s ");
             args.append(screenResolution.getSkinName());
@@ -518,7 +515,21 @@ class EmulatorConfig implements Serializable {
             // Tack on quoted platform name at the end, since it can be anything
             builder.add("-t");
             builder.add(osVersion.getTargetName());
-
+            
+            //Check to see if the sdk to use is valid, abort build if it isn't
+            boolean sdkVersionValid = false;
+            int sdkLevel = 1;
+            try {
+            	sdkLevel = Integer.parseInt(osVersion.getTargetName());
+            	sdkVersionValid = true;
+            } catch (NumberFormatException ex){
+            	sdkVersionValid = false;
+            }
+            
+            if(!sdkVersionValid){
+            	System.exit(-1);
+            }
+            
             // Log command line used, for info
             AndroidEmulator.log(logger, builder.toStringWithQuote());
 
